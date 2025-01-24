@@ -69,4 +69,14 @@ class SendNewPhonenumberSerializer(serializers.ModelSerializer):
         extra_kwargs = {'phone_number': {'write_only': True, 'required':True}, 'email': {'write_only': True}, }
         read_only_fields = ('id', 'verification_code')
         
+class DepositSerializer(serializers.Serializer):
+    amount = serializers.FloatField(required=True)
+
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero")
+        return value
     
+class WithdrawalSerializer(DepositSerializer):
+    pass   

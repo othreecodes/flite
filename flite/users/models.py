@@ -86,6 +86,7 @@ class Balance(BaseModel):
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     book_balance = models.FloatField(default=0.0) 
+    old_balance = models.FloatField(default=0.0)
     available_balance = models.FloatField(default=0.0) 
     active = models.BooleanField(default=True)
 
@@ -115,11 +116,17 @@ class Bank(models.Model):
     account_type = models.CharField(max_length=50)
     
 class Transaction(BaseModel):
+    TRANSACTION_TYPES = [
+        ("DEPOSIT", "Deposit"),
+        ("WITHDRAWAL", "Withdrawal")
+    ]
+
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transaction')
     reference = models.CharField(max_length=200)
-    status = models.CharField(max_length=200)
     amount = models.FloatField(default=0.0)
     new_balance = models.FloatField(default=0.0)
+    type = models.CharField(choices=TRANSACTION_TYPES, max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 
