@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, NewUserPhoneVerification,UserProfile,Referral
+from .models import Balance, User, NewUserPhoneVerification,UserProfile,Referral
 from . import utils
 
 class UserSerializer(serializers.ModelSerializer):
@@ -48,11 +48,10 @@ class CreateUserSerializer(serializers.ModelSerializer):
         read_only_fields = ('auth_token',)
         extra_kwargs = {'password': {'write_only': True}}
 
-class UserListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User  # Replace with your actual User model
-        fields = '__all__'
+class DepositSerializer(serializers.Serializer):
+    amount = serializers.FloatField()
 
+    
 class SendNewPhonenumberSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
