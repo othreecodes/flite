@@ -15,7 +15,30 @@ class UserViewSet(mixins.RetrieveModelMixin,
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    lookup_field = 'id' # This is the field that will be used to look up the user
     permission_classes = (IsUserOrReadOnly,)
+
+    # func retrieves specific user by 'id'
+    def retrieve(self, request, *args, **kwargs)->Response:
+        """
+        Retrieve a specific user by 'id'.
+        """
+        user = self.get_object()  # Fetch the user by 'id'
+        return Response(UserSerializer(user).data)
+
+    # func retrieves all users in the database
+    def list(self, request, *args, **kwargs)->Response:
+        """
+        List all users.
+        """
+        users = self.get_queryset()
+        page = self.paginate_queryset(users)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
 
 
 class UserCreateViewSet(mixins.CreateModelMixin,
