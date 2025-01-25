@@ -12,3 +12,4 @@ class IsUserOrReadOnly(permissions.BasePermission):
             return True
 
         return obj == request.user
+

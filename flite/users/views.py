@@ -6,12 +6,18 @@ from .permissions import IsUserOrReadOnly
 from .serializers import *
 from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.db import transaction
 import uuid
 from rest_framework.pagination import PageNumberPagination
+from django.shortcuts import get_object_or_404
 
 from . import utils
+
+class UserPagination(PageNumberPagination):
+    page_size = 10  # Default number of items per page
+    page_size_query_param = 'limit'
+    max_page_size = 100
 
 class UserViewSet(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
@@ -23,16 +29,49 @@ class UserViewSet(mixins.RetrieveModelMixin,
     serializer_class = UserSerializer
     permission_classes = (IsUserOrReadOnly,)
 
+    def get_queryset(self):
+        query = super().get_queryset()
+        if self.request.user.is_authenticated:
+            if hasattr(self.request.user, "admin") or self.request.user.is_superuser: 
+                return query
+            return query.filter(id=self.request.user.id)
+        return query.none()
+
 
 class UserCreateViewSet(mixins.CreateModelMixin,
+                        mixins.ListModelMixin,
                         viewsets.GenericViewSet):
     """
     Creates user accounts
     """
     queryset = User.objects.all()
     serializer_class = CreateUserSerializer
+    pagination_class = UserPagination
     permission_classes = (AllowAny,)
 
+    def list(self, request, *args, **kwargs):
+        """
+        Lists users with pagination.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = UserSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = UserSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def get_queryset(self):
+        query = super().get_queryset()
+        if self.request.user.is_authenticated:
+            if hasattr(self.request.user, "admin") or self.request.user.is_superuser: 
+                return query
+            return query.filter(id=self.request.user.id)
+        return query.none()
+
+    
+ 
 
 class SendNewPhonenumberVerifyViewSet(mixins.CreateModelMixin,mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """
@@ -136,7 +175,7 @@ class UserWithdrawalView(GenericAPIView):
             if amount > balance.available_balance:
                 return Response(
                     {
-                        "message": 'Insufficient funds',
+                        "message": 'Insufficient balance',
                         "status": status.HTTP_400_BAD_REQUEST
                     }, status=status.HTTP_400_BAD_REQUEST
                 )
@@ -176,77 +215,64 @@ class UserWithdrawalView(GenericAPIView):
                 }, status=status.HTTP_400_BAD_REQUEST
             )
 
-
-
-class TransferFundView(GenericAPIView):
+class TransferFundView(APIView):
     serializer_class = TransferFundSerializer
     permission_classes = [IsAuthenticated]
 
     def post(self, request, sender_account_id, recipient_account_id, *args, **kwargs):
         sender = request.user
-
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         amount = serializer.validated_data["amount"]
 
+        # Retrieve recipient and balances atomically
+        recipient = get_object_or_404(User, id=recipient_account_id)
+        sender_balance = Balance.objects.filter(owner=sender).first()
+        recipient_balance = Balance.objects.filter(owner=recipient).first()
+
+        if not sender_balance or not recipient_balance:
+            return Response(
+                {"message": "Balance records not found", "status": status.HTTP_400_BAD_REQUEST},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if sender_balance.available_balance < amount:
+            return Response(
+                {"message": "Insufficient funds", "status": status.HTTP_400_BAD_REQUEST},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
-            recipient = User.objects.get(id=recipient_account_id)
+            with transaction.atomic():
+                # Update balances
+                sender_balance.old_balance = sender_balance.available_balance
+                recipient_balance.old_balance = recipient_balance.available_balance
 
-            sender_balance = Balance.objects.filter(owner=sender).first()
+                sender_balance.available_balance -= amount
+                sender_balance.book_balance -= amount
+                recipient_balance.available_balance += amount
+                recipient_balance.book_balance += amount
 
-            if sender_balance is None:
-                return Response(
-                    {
-                        "message": "Sender balance record not found",
-                        "status": status.HTTP_400_BAD_REQUEST
-                    }, status=status.HTTP_400_BAD_REQUEST
+                sender_balance.save()
+                recipient_balance.save()
+
+                # Create transaction records
+                Transaction.objects.create(
+                    owner=sender,
+                    reference=str(uuid.uuid4()),
+                    amount=amount,
+                    new_balance=sender_balance.available_balance,
+                    type="TRANSFER",
                 )
 
-            recipient_balance = Balance.objects.filter(owner=recipient).first()
-
-            if recipient_balance is None:
-                return Response(
-                    {
-                        "message": "Recipient balance record not found",
-                        "status": status.HTTP_400_BAD_REQUEST
-                    }, status=status.HTTP_400_BAD_REQUEST
+                Transaction.objects.create(
+                    owner=recipient,
+                    reference=str(uuid.uuid4()),
+                    amount=amount,
+                    new_balance=recipient_balance.available_balance,
+                    type="RECEIVED",
                 )
-            
-            if sender_balance.available_balance < amount:
-                return Response(
-                    {
-                        "message": "Insufficient funds",
-                        "status": status.HTTP_400_BAD_REQUEST
-                    }, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            sender_balance.old_balance = sender_balance.available_balance
-            recipient_balance.old_balance = recipient_balance.available_balance
-            sender_balance.available_balance -= amount
-            sender_balance.book_balance -= amount
-            recipient_balance.available_balance += amount
-            recipient_balance.book_balance += amount
-            sender_balance.save()
-            recipient_balance.save()
-
-            # Create transaction records for sender
-            Transaction.objects.create(
-                owner=sender,
-                reference=str(uuid.uuid4()),
-                amount=amount,
-                new_balance=sender_balance.available_balance,
-                type="TRANSFER"
-            )
-
-            # Create transaction record for recipient
-            Transaction.objects.create(
-                owner=recipient,
-                reference=str(uuid.uuid4()),
-                amount=amount,
-                new_balance=recipient_balance.available_balance,
-                type="RECEIVED"
-            )
 
             return Response(
                 {
@@ -255,24 +281,16 @@ class TransferFundView(GenericAPIView):
                     "sender_old_balance": sender_balance.old_balance,
                     "sender_new_balance": sender_balance.available_balance,
                     "recipient_old_balance": recipient_balance.old_balance,
-                    "recipient_new_balance": recipient_balance.available_balance
-                }, status=status.HTTP_200_OK
+                    "recipient_new_balance": recipient_balance.available_balance,
+                },
+                status=status.HTTP_200_OK,
             )
-        # except User.DoesNotExist:
-        #     return Response(
-        #         {
-        #             "message": "Recipient user not found",
-        #             "status": status.HTTP_400_BAD_REQUEST
-        #         }, status=status.HTTP_400_BAD_REQUEST
-        #     )
         except Exception as e:
             return Response(
-                {
-                    "error": str(e),
-                    "status": status.HTTP_400_BAD_REQUEST
-                }, status=status.HTTP_400_BAD_REQUEST
+                {"error": str(e), "status": status.HTTP_400_BAD_REQUEST},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+   
 class TransactionListView(GenericAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer

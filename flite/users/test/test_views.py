@@ -12,6 +12,7 @@ from rest_framework import status
 from flite.users.models import Balance, Transaction, User
 import uuid
 from ..serializers import *
+from django.db import transaction
 
 fake = Faker()
 
@@ -24,6 +25,8 @@ class TestUserListTestCase(APITestCase):
     def setUp(self):
         self.url = reverse('user-list')
         self.user_data = model_to_dict(UserFactory.build())
+        self.admin_user = User.objects.create_superuser(username="admin", email="admin@gmail.com", password="adminpass")
+        self.regular_user = User.objects.create_user(username="user", password="userpass")        
 
     def test_post_request_with_no_data_fails(self):
         response = self.client.post(self.url, {})
@@ -58,6 +61,33 @@ class TestUserListTestCase(APITestCase):
         self.user_data.update({"referral_code":"FAKECODE"})
         response = self.client.post(self.url, self.user_data)
         eq_(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_list_request_as_admin_succeeds(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), User.objects.count())
+
+    def test_list_request_as_regular_user_succeeds(self):
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['username'], self.regular_user.username)        
+
+    def test_list_request_with_pagination(self):
+        # Create additional users to test pagination
+        for i in range(10):
+            User.objects.create_user(username=f'user{i}', password='password')
+
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue('results' in response.data)
+        self.assertTrue('count' in response.data)
+        self.assertTrue('next' in response.data or 'previous' in response.data)
+        self.assertEqual(response.data['count'], User.objects.count())        
+    
         
 class TestUserDetailTestCase(APITestCase):
     """
@@ -66,12 +96,21 @@ class TestUserDetailTestCase(APITestCase):
 
     def setUp(self):
         self.user = UserFactory()
+        self.other_user = UserFactory()        
         self.url = reverse('user-detail', kwargs={'pk': self.user.pk})
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.user.auth_token}')
+        self.other_user_url = reverse('user-detail', kwargs={'pk': self.other_user.pk})        
 
     def test_get_request_returns_a_given_user(self):
+        # Test authenticated user can view their own details
         response = self.client.get(self.url)
         eq_(response.status_code, status.HTTP_200_OK)
+        eq_(response.data['id'], self.user.id)
+
+    def test_get_request_fails_for_other_user(self):
+        # Test authenticated user cannot view another user's details
+        response = self.client.get(self.other_user_url)
+        eq_(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_put_request_updates_a_user(self):
         new_first_name = fake.first_name()
@@ -81,6 +120,8 @@ class TestUserDetailTestCase(APITestCase):
 
         user = User.objects.get(pk=self.user.id)
         eq_(user.first_name, new_first_name)
+
+        
 
 class UserDepositsViewTest(APITestCase):
     def setUp(self):
@@ -159,7 +200,7 @@ class UserWithdrawalViewTest(APITestCase):
         self.balance.refresh_from_db()
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data['message'], 'Insufficient funds')
+        self.assertEqual(response.data['message'], 'Insufficient balance')
         self.assertEqual(self.balance.available_balance, 1000.00)
         self.assertEqual(self.balance.book_balance, 1000.00)
         self.assertFalse(Transaction.objects.filter(owner=self.user, amount=1100.00, type='WITHDRAWAL').exists())
@@ -244,3 +285,55 @@ class TransactionDetailViewTest(APITestCase):
         self.assertEqual(response.data['message'], "Transaction not found")
 
 
+
+class TransferFundViewTest(APITestCase):
+    def setUp(self):
+        # Create users
+        self.sender = User.objects.create_user(username="sender", password="password123")
+        self.recipient = User.objects.create_user(username="recipient", password="password123")
+        
+        # Create balances
+        self.sender_balance = Balance.objects.create(owner=self.sender, available_balance=1000, book_balance=1000)
+        self.recipient_balance = Balance.objects.create(owner=self.recipient, available_balance=500, book_balance=500)
+        self.url = reverse('transfer_funds', kwargs={'sender_account_id': self.sender.id, 'recipient_account_id': self.recipient.id})
+        
+        # Authenticate sender
+        self.client.force_authenticate(user=self.sender)
+
+    @transaction.atomic
+    def test_successful_transfer(self):
+        data = {"amount": 200}
+        
+        response = self.client.post(self.url, data)
+        print(response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.sender_balance.refresh_from_db()
+        self.recipient_balance.refresh_from_db()
+        
+        # Assert balances updated correctly
+        self.assertEqual(self.sender_balance.available_balance, 800)
+        self.assertEqual(self.recipient_balance.available_balance, 700)
+        
+        # Assert transactions created
+        self.assertEqual(Transaction.objects.filter(owner=self.sender, type="TRANSFER").count(), 1)
+        self.assertEqual(Transaction.objects.filter(owner=self.recipient, type="RECEIVED").count(), 1)
+
+    @transaction.atomic
+    def test_insufficient_funds(self):
+        data = {"amount": 2000}
+        
+        response = self.client.post(self.url, data)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Insufficient funds", response.data["message"])
+
+    @transaction.atomic
+    def test_recipient_not_found(self):
+        recipient_id = uuid.uuid4()
+        url = f"/api/v1/account/{self.sender.id}/transfers/{recipient_id}/"
+        data = {"amount": 200}
+        
+        response = self.client.post(url, data)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("Not found", response.data["detail"])
