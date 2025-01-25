@@ -6,7 +6,8 @@ from django.contrib import admin
 
 @admin.register(User)
 class UserAdmin(UserAdmin):
-    pass
+    model = User
+    list_display = ('id', 'username' )
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
@@ -32,10 +33,7 @@ class BankAdmin(admin.ModelAdmin):
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ('owner', 'reference', 'amount', 'type', 'created_at')
-
-@admin.register(P2PTransfer)
-class P2PTransferAdmin(admin.ModelAdmin):
-    list_display = ('owner', 'sender', 'receipient')
+    ordering = ['-created_at']
 
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):

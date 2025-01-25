@@ -65,6 +65,10 @@ class Common(Configuration):
         )
     }
 
+    DATABASES['default']['TEST'] = {
+        'NAME': 'test_flite',  # Explicitly set the test database name
+    }
+
     # General
     APPEND_SLASH = False
     TIME_ZONE = 'Africa/Lagos'

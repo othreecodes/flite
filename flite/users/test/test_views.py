@@ -99,6 +99,7 @@ class UserDepositsViewTest(APITestCase):
         }
         response = self.client.post(self.url, data, format='json')
 
+
         # Check response
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['message'], 'Deposit successful')

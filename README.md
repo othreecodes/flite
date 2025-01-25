@@ -192,3 +192,143 @@ Content-Type: application/json
 - Once a `POST` request is made to this endpoint with a valid amount, the user's account is debited.
 
 ---
+
+# 3. Fund Transfer
+
+Supports transferring funds from one user's account to another user's account.
+
+## Transfer funds between users
+
+**Request**:
+
+`POST` `/api/v1/account/:sender_account_id/transfers/:recipient_account_id/`
+
+### Parameters:
+
+| Name                   | Type   | Required | Description                                                                 |
+|------------------------|--------|----------|-----------------------------------------------------------------------------|
+| amount                 | float  | Yes      | The amount to be transferred. Must be greater than zero and less than or equal to the sender's available balance. |
+| sender_account_id      | int    | Yes      | The ID of the sender's account (authenticated user's account).             |
+| recipient_account_id   | int    | Yes      | The ID of the recipient's account.                                          |
+
+**Note**:
+
+- **Authorization Protected**: You must include a valid authentication token in the request header.
+- The `sender_account_id` in the URL should correspond to the authenticated user's account.
+- The `recipient_account_id` should be the ID of the user receiving the funds.
+- The `amount` must be a positive number and cannot exceed the sender's available balance.
+
+---
+
+### Example Request in Postman
+
+1. Set the request method to `POST`.
+2. Set the URL to: `http://localhost:8000/api/v1/account/<sender_account_id>/transfers/<recipient_account_id>/`.
+3. In the request body, set the type to `raw` and choose `JSON` format. Then enter the following JSON:
+
+```json
+{
+  "amount": 200.0
+}
+```
+
+4. Include the authentication token in the request header:
+
+```text
+Authorization: Token <your_token>
+```
+
+5. Send the request, and you should receive a response with the updated balances.
+
+---
+
+**Response**:
+
+### Success Response
+
+```json
+Content-Type: application/json
+200 OK
+
+{
+  "message": "Transfer successful",
+  "status": 200,
+  "sender_old_balance": 1000.0,
+  "sender_new_balance": 800.0,
+  "recipient_old_balance": 500.0,
+  "recipient_new_balance": 700.0
+}
+```
+
+- **message**: A success message indicating that the transfer was successful.
+- **status**: The HTTP status code (`200 OK`).
+- **sender_old_balance**: The balance of the sender's account before the transfer was made.
+- **sender_new_balance**: The balance of the sender's account after the transfer was made.
+- **recipient_old_balance**: The balance of the recipient's account before the transfer was made.
+- **recipient_new_balance**: The balance of the recipient's account after the transfer was made.
+
+### Error Response (Insufficient Funds)
+
+```json
+Content-Type: application/json
+400 Bad Request
+
+{
+  "message": "Insufficient funds",
+  "status": 400
+}
+```
+
+- **message**: A description of what went wrong (e.g., the transfer amount exceeds the sender's available balance).
+- **status**: The HTTP status code (`400 Bad Request`).
+
+### Error Response (Sender Balance Not Found)
+
+```json
+Content-Type: application/json
+400 Bad Request
+
+{
+  "message": "Sender balance record not found",
+  "status": 400
+}
+```
+
+- **message**: A description of what went wrong (e.g., no balance record found for the sender).
+- **status**: The HTTP status code (`400 Bad Request`).
+
+### Error Response (Recipient Balance Not Found)
+
+```json
+Content-Type: application/json
+400 Bad Request
+
+{
+  "message": "Recipient balance record not found",
+  "status": 400
+}
+```
+
+- **message**: A description of what went wrong (e.g., no balance record found for the recipient).
+- **status**: The HTTP status code (`400 Bad Request`).
+
+### Error Response (Recipient User Not Found)
+
+```json
+Content-Type: application/json
+400 Bad Request
+
+{
+  "message": "Recipient user not found",
+  "status": 400
+}
+```
+
+- **message**: A description of what went wrong (e.g., the recipient user does not exist).
+- **status**: The HTTP status code (`400 Bad Request`).
+
+---
+
+## Assumptions
+
+- Once a `POST` request is made to this endpoint with a valid amount, the sender's account is debited, and the recipient's account is credited.

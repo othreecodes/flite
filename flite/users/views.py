@@ -111,6 +111,7 @@ class UserDepositsView(GenericAPIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+       
 class UserWithdrawalView(GenericAPIView):
     serializer_class = WithdrawalSerializer
 
@@ -163,13 +164,110 @@ class UserWithdrawalView(GenericAPIView):
             return Response(
                 {
                     "message": "Balance record not found",
-                    "status": status.HTTP_400_BAD_REQUEST
-                }, status=status.HTTP_400_BAD_REQUEST
+                    "status": status.HTTP_404_NOT_FOUND
+                }, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
                 {
                     "message": str(e),
+                    "status": status.HTTP_400_BAD_REQUEST
+                }, status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+
+class TransferFundView(GenericAPIView):
+    serializer_class = TransferFundSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, sender_account_id, recipient_account_id, *args, **kwargs):
+        sender = request.user
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        amount = serializer.validated_data["amount"]
+
+        try:
+            recipient = User.objects.get(id=recipient_account_id)
+
+            sender_balance = Balance.objects.filter(owner=sender).first()
+
+            if sender_balance is None:
+                return Response(
+                    {
+                        "message": "Sender balance record not found",
+                        "status": status.HTTP_400_BAD_REQUEST
+                    }, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            recipient_balance = Balance.objects.filter(owner=recipient).first()
+
+            if recipient_balance is None:
+                return Response(
+                    {
+                        "message": "Recipient balance record not found",
+                        "status": status.HTTP_400_BAD_REQUEST
+                    }, status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if sender_balance.available_balance < amount:
+                return Response(
+                    {
+                        "message": "Insufficient funds",
+                        "status": status.HTTP_400_BAD_REQUEST
+                    }, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            sender_balance.old_balance = sender_balance.available_balance
+            recipient_balance.old_balance = recipient_balance.available_balance
+            sender_balance.available_balance -= amount
+            sender_balance.book_balance -= amount
+            recipient_balance.available_balance += amount
+            recipient_balance.book_balance += amount
+            sender_balance.save()
+            recipient_balance.save()
+
+            # Create transaction records for sender
+            Transaction.objects.create(
+                owner=sender,
+                reference=str(uuid.uuid4()),
+                amount=amount,
+                new_balance=sender_balance.available_balance,
+                type="TRANSFER"
+            )
+
+            # Create transaction record for recipient
+            Transaction.objects.create(
+                owner=recipient,
+                reference=str(uuid.uuid4()),
+                amount=amount,
+                new_balance=recipient_balance.available_balance,
+                type="RECEIVED"
+            )
+
+            return Response(
+                {
+                    "message": "Transfer successful",
+                    "status": status.HTTP_200_OK,
+                    "sender_old_balance": sender_balance.old_balance,
+                    "sender_new_balance": sender_balance.available_balance,
+                    "recipient_old_balance": recipient_balance.old_balance,
+                    "recipient_new_balance": recipient_balance.available_balance
+                }, status=status.HTTP_200_OK
+            )
+        # except User.DoesNotExist:
+        #     return Response(
+        #         {
+        #             "message": "Recipient user not found",
+        #             "status": status.HTTP_400_BAD_REQUEST
+        #         }, status=status.HTTP_400_BAD_REQUEST
+        #     )
+        except Exception as e:
+            return Response(
+                {
+                    "error": str(e),
                     "status": status.HTTP_400_BAD_REQUEST
                 }, status=status.HTTP_400_BAD_REQUEST
             )

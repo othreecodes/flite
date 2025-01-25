@@ -21,6 +21,7 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path("api/v1/users/<str:id>/deposits/", UserDepositsView.as_view(), name="user_deposits"),
     path("api/v1/users/<str:id>/withdrawals/", UserWithdrawalView.as_view(), name="user_withdrawals"),
+    path('api/v1/account/<uuid:sender_account_id>/transfers/<uuid:recipient_account_id>/', TransferFundView.as_view(), name='transfer_funds'),
 
 
     # the 'api-root' from django rest-frameworks default router
