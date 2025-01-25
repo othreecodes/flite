@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, NewUserPhoneVerification,UserProfile,Referral
+from .models import User, NewUserPhoneVerification,UserProfile,Referral, Transaction
 from . import utils
 
 class UserSerializer(serializers.ModelSerializer):
@@ -88,5 +88,10 @@ class TransferFundSerializer(serializers.Serializer):
         if value <= 0:
             raise serializers.ValidationError("Amount must be greater than zero")
         return value
+    
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = "__all__"
 
 

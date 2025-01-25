@@ -9,6 +9,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 import uuid
+from rest_framework.pagination import PageNumberPagination
 
 from . import utils
 
@@ -124,13 +125,13 @@ class UserWithdrawalView(GenericAPIView):
 
             # Use filter() to ensure there's only one Balance object and handle multiple cases
             balance = Balance.objects.filter(owner=user).first()
-            if not balance:
-                return Response(
-                    {
-                        "message": "Balance record not found",
-                        "status": status.HTTP_400_BAD_REQUEST
-                    }, status=status.HTTP_400_BAD_REQUEST
-                )
+            # if not balance:
+            #     return Response(
+            #         {
+            #             "message": "Balance record not found",
+            #             "status": status.HTTP_400_BAD_REQUEST
+            #         }, status=status.HTTP_400_BAD_REQUEST
+            #     )
 
             if amount > balance.available_balance:
                 return Response(
@@ -139,19 +140,19 @@ class UserWithdrawalView(GenericAPIView):
                         "status": status.HTTP_400_BAD_REQUEST
                     }, status=status.HTTP_400_BAD_REQUEST
                 )
+            with transaction.atomic():
+                old_balance = balance.available_balance
+                balance.available_balance -= amount
+                balance.book_balance -= amount
+                balance.save()
 
-            old_balance = balance.available_balance
-            balance.available_balance -= amount
-            balance.book_balance -= amount
-            balance.save()
-
-            Transaction.objects.create(
-                owner=user,
-                reference=str(uuid.uuid4()),
-                amount=amount,
-                new_balance=balance.available_balance,
-                type="WITHDRAWAL"
-            )
+                Transaction.objects.create(
+                    owner=user,
+                    reference=str(uuid.uuid4()),
+                    amount=amount,
+                    new_balance=balance.available_balance,
+                    type="WITHDRAWAL"
+                )
             return Response(
                 {
                     "message": "Withdrawal successful",
@@ -270,4 +271,72 @@ class TransferFundView(GenericAPIView):
                     "error": str(e),
                     "status": status.HTTP_400_BAD_REQUEST
                 }, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+class TransactionListView(GenericAPIView):
+    queryset = Transaction.objects.all()
+    serializer_class = TransactionSerializer
+    # permission_classes = [IsAuthenticated]
+    pagination_class = PageNumberPagination
+
+    def get(self, request, id, *args, **kwargs):
+        try:
+            user = request.user
+            if str(user.id) != id:
+                return Response(
+                    {
+                        "message": "You are not authorized to view this user's transactions",
+                        "status": status.HTTP_403_FORBIDDEN
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
+            transactions = Transaction.objects.filter(owner=user).order_by('created_at')  # Order by created_at
+            paginator = self.pagination_class()
+            paginated_transactions = paginator.paginate_queryset(transactions, request)
+
+            # Serialize the paginated transactions
+            serializer = self.get_serializer(paginated_transactions, many=True)
+
+            # Return the paginated response
+            return paginator.get_paginated_response(serializer.data)
+        except Exception as e:
+            return Response(
+                {
+                    "errors": str(e),
+                    "status": status.HTTP_400_BAD_REQUEST
+                }, status= status.HTTP_400_BAD_REQUEST
+                
+            )
+        
+class TransactionDetailView(GenericAPIView):
+    queryset = Transaction.objects.all()
+    serializer_class = TransactionSerializer
+
+    def get(self, request, id, transaction_id, *args, **kwargs):
+        try:
+            user = request.user
+            if str(user.id) != id:
+                return Response(
+                    {
+                        "message": "You are not authorized to view this user's transactions",
+                        "status": status.HTTP_403_FORBIDDEN
+                    }, status=status.HTTP_403_FORBIDDEN
+                )
+            transaction = Transaction.objects.get(id=transaction_id, owner=user)
+
+            serializer = self.get_serializer(transaction)            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Transaction.DoesNotExist:
+                return Response(
+                    {
+                        "message": "Transaction not found",
+                        "status": status.HTTP_404_NOT_FOUND
+                    }, status=status.HTTP_404_NOT_FOUND
+                )        
+        except Exception as e:
+            return Response(
+                {
+                    "errors": str(e),
+                    "status": status.HTTP_400_BAD_REQUEST
+                }, status= status.HTTP_400_BAD_REQUEST
+                
             )

@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework import status
 from flite.users.models import Balance, Transaction, User
 import uuid
+from ..serializers import *
 
 fake = Faker()
 
@@ -144,6 +145,7 @@ class UserWithdrawalViewTest(APITestCase):
         data = {'amount': 100.00}
         response = self.client.post(self.withdrawal_url, data, format='json')
         self.balance.refresh_from_db()
+        print(response.data)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['message'], 'Withdrawal successful')
@@ -161,3 +163,84 @@ class UserWithdrawalViewTest(APITestCase):
         self.assertEqual(self.balance.available_balance, 1000.00)
         self.assertEqual(self.balance.book_balance, 1000.00)
         self.assertFalse(Transaction.objects.filter(owner=self.user, amount=1100.00, type='WITHDRAWAL').exists())
+
+
+
+class TransactionListViewTest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='user', password='password')
+        self.other_user = User.objects.create_user(username='other_user', password='password')
+        self.client.force_authenticate(user=self.user)
+        self.url = reverse('transactions', kwargs={'id': self.user.id})
+
+        # Create some transactions for the user
+        self.transactions = [
+            Transaction.objects.create(owner=self.user, reference='ref1', amount=100.0, new_balance=900.0, type='TRANSFER'),
+            Transaction.objects.create(owner=self.user, reference='ref2', amount=200.0, new_balance=700.0, type='TRANSFER'),
+            Transaction.objects.create(owner=self.user, reference='ref3', amount=300.0, new_balance=400.0, type='TRANSFER')
+        ]
+
+    def test_get_transactions_successful(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], len(self.transactions))
+
+        # Check if the transactions are serialized correctly
+        serializer = TransactionSerializer(self.transactions, many=True)
+        self.assertEqual(response.data['results'], serializer.data)
+
+    def test_get_transactions_unauthorized(self):
+        self.client.force_authenticate(user=self.other_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['message'], "You are not authorized to view this user's transactions")
+
+    def test_get_transactions_no_authentication(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_transactions_invalid_user(self):
+        invalid_url = reverse('transactions', kwargs={'id': 'invalid_id'})
+        response = self.client.get(invalid_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['message'], "You are not authorized to view this user's transactions")
+
+
+class TransactionDetailViewTest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='user', password='password')
+        self.other_user = User.objects.create_user(username='other_user', password='password')
+        self.client.force_authenticate(user=self.user)
+        self.transaction = Transaction.objects.create(owner=self.user, reference='ref1', amount=100.0, new_balance=900.0, type='TRANSFER')
+        self.url = reverse('transaction_detail', kwargs={'id': self.user.id, 'transaction_id': self.transaction.id})
+
+    def test_get_transaction_successful(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Check if the transaction is serialized correctly
+        serializer = TransactionSerializer(self.transaction)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_get_transaction_unauthorized(self):
+        self.client.force_authenticate(user=self.other_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['message'], "You are not authorized to view this user's transactions")
+
+    def test_get_transaction_no_authentication(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_transaction_not_found(self):
+        non_existent_transaction_id = uuid.uuid4() 
+        invalid_url = reverse('transaction_detail', kwargs={'id': self.user.id, 'transaction_id': non_existent_transaction_id})
+        response = self.client.get(invalid_url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data['message'], "Transaction not found")
+
+

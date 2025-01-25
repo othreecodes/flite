@@ -332,3 +332,275 @@ Content-Type: application/json
 ## Assumptions
 
 - Once a `POST` request is made to this endpoint with a valid amount, the sender's account is debited, and the recipient's account is credited.
+
+# 4. Transaction List
+
+Supports retrieving a paginated list of transactions for the authenticated user.
+
+## Retrieve User Transactions
+
+**Request**:
+
+`GET` `/api/v1/account/:account_id/transactions/`
+
+### Parameters:
+
+| Name | Type   | Required | Description                                                                 |
+|------|--------|----------|-----------------------------------------------------------------------------|
+| id   | int    | Yes      | The ID of the authenticated user whose transactions are to be retrieved.    |
+
+**Note**:
+
+- **Authorization Protected**: You must include a valid authentication token in the request header.
+- The `id` in the URL must correspond to the authenticated user's ID (`request.user.id`).
+- Transactions are returned in ascending order of their `created_at` timestamp.
+
+---
+
+### Example Request in Postman
+
+1. Set the request method to `GET`.
+2. Set the URL to: `http://localhost:8000/api/v1/account/<account_id>/transactions/` (replace `<account_id>` with the authenticated user's ID).
+3. Include the authentication token in the request header:
+
+```text
+Authorization: Token <your_token>
+```
+
+4. Send the request, and you should receive a paginated response with the user's transactions.
+
+---
+
+### Response
+
+#### Success Response (200 OK)
+
+```json
+Content-Type: application/json
+200 OK
+
+{
+  "count": 5,
+  "next": "http://localhost:8000/api/v1/user/123/transactions/?page=2",
+  "previous": null,
+  "results": [
+    {
+            "id": "b28da037-0fb1-4375-a373-3d14082fb98c",
+            "created": "2025-01-24T13:21:41+0100",
+            "modified": "2025-01-24T13:21:41+0100",
+            "reference": "d81c7f88-e017-4d73-896a-bbaaad483cc7",
+            "amount": 10000.0,
+            "new_balance": 10000.0,
+            "type": "Deposit",
+            "created_at": "2025-01-24T13:21:41+0100",
+            "owner": "e4b2080c-66b8-4546-b435-cdbe474b81f7",
+            "sender": null,
+            "recipient": null
+    },
+    {
+            "id": "0bbdc3f6-c7fc-4e77-8cbf-05827d1bbcbf",
+            "created": "2025-01-24T13:21:44+0100",
+            "modified": "2025-01-24T13:21:44+0100",
+            "reference": "cd1417ba-9061-4a8f-9605-388e4ef726d1",
+            "amount": 100.0,
+            "new_balance": 10100.0,
+            "type": "Deposit",
+            "created_at": "2025-01-24T13:21:44+0100",
+            "owner": "e4b2080c-66b8-4546-b435-cdbe474b81f7",
+            "sender": null,
+            "recipient": null
+    }
+  ]
+}
+```
+
+- **count**: Total number of transactions for the user.
+- **next**: URL for the next page of results (if applicable).
+- **previous**: URL for the previous page of results (if applicable).
+- **results**: A list of transactions with their details.
+
+---
+
+### Error Responses
+
+#### Unauthorized Access (403 Forbidden)
+
+```json
+Content-Type: application/json
+403 Forbidden
+
+{
+  "message": "You are not authorized to view this user's transactions",
+  "status": 403
+}
+```
+
+- **message**: Explains that the authenticated user is not authorized to view the transactions for the given user ID.
+- **status**: The HTTP status code (`403 Forbidden`).
+
+---
+
+#### No Transactions Found (200 OK)
+
+```json
+Content-Type: application/json
+200 OK
+
+{
+  "count": 0,
+  "next": null,
+  "previous": null,
+  "results": []
+}
+```
+
+- **count**: Indicates no transactions were found for the user.
+- **results**: An empty list indicating no transactions are available.
+
+---
+
+#### Error Response (400 Bad Request)
+
+```json
+Content-Type: application/json
+400 Bad Request
+
+{
+  "errors": "Some error message",
+  "status": 400
+}
+```
+
+- **errors**: Describes the specific error encountered during the request.
+- **status**: The HTTP status code (`400 Bad Request`).
+
+---
+
+# 5. Transaction Detail
+
+Supports retrieving the details of a specific transaction for an authenticated user.
+
+## Retrieve a transaction detail
+
+**Request**:
+
+`GET` `/api/v1/account/:account_id/transactions/:transaction_id/`
+
+### Parameters:
+
+| Name            | Type   | Required | Description                                                           |
+|-----------------|--------|----------|-----------------------------------------------------------------------|
+| user_id         | int    | Yes      | The ID of the authenticated user whose transaction is being retrieved.|
+| transaction_id  | int    | Yes      | The ID of the specific transaction to retrieve.                       |
+
+**Note**:
+
+- **Authorization Protected**: You must include a valid authentication token in the request header.
+- The `user_id` in the URL must match the authenticated user's ID.
+- The `transaction_id` must belong to a transaction owned by the authenticated user.
+
+---
+
+### Example Request in Postman
+
+1. Set the request method to `GET`.
+2. Set the URL to: `http://localhost:8000/api/v1/account/<account_id>/transactions/<transaction_id>/`.
+3. Include the authentication token in the request header:
+
+```text
+Authorization: Token <your_token>
+```
+
+4. Send the request, and you should receive the details of the specified transaction.
+
+---
+
+**Response**:
+
+### Success Response
+
+```json
+Content-Type: application/json
+200 OK
+
+{
+    "id": "b28da037-0fb1-4375-a373-3d14082fb98c",
+    "created": "2025-01-24T13:21:41+0100",
+    "reference": "d81c7f88-e017-4d73-896a-bbaaad483cc7",
+    "amount": 10000.0,
+    "new_balance": 10000.0,
+    "type": "Deposit",
+    "created_at": "2025-01-24T13:21:41+0100",
+    "owner": "e4b2080c-66b8-4546-b435-cdbe474b81f7",
+    "sender": null,
+    "recipient": null
+}
+```
+
+- **id**: The unique identifier (UUID) of the transaction.
+- **created**: The timestamp when the transaction was created.
+- **reference**: A unique reference for the transaction.
+- **amount**: The amount involved in the transaction.
+- **new_balance**: The user's updated balance after the transaction.
+- **type**: The type of transaction (e.g., `Deposit`, `Withdrawal`).
+- **created_at**: The timestamp when the transaction was created (duplicate of `created`).
+- **owner**: The UUID of the user who owns the transaction.
+- **sender**: The UUID of the sender (if applicable, otherwise `null`).
+- **recipient**: The UUID of the recipient (if applicable, otherwise `null`).
+
+---
+
+### Error Response (Unauthorized Access)
+
+```json
+Content-Type: application/json
+403 Forbidden
+
+{
+  "message": "You are not authorized to view this user's transactions",
+  "status": 403
+}
+```
+
+- **message**: Indicates that the authenticated user is not authorized to access this transaction.
+- **status**: The HTTP status code (`403 Forbidden`).
+
+---
+
+### Error Response (Transaction Not Found)
+
+```json
+Content-Type: application/json
+404 Not Found
+
+{
+  "message": "Transaction not found",
+  "status": 404
+}
+```
+
+- **message**: Indicates that the specified transaction does not exist for the user.
+- **status**: The HTTP status code (`404 Not Found`).
+
+---
+
+### Error Response (Other Errors)
+
+```json
+Content-Type: application/json
+400 Bad Request
+
+{
+  "errors": "Error message describing what went wrong",
+  "status": 400
+}
+```
+
+- **errors**: A description of the error encountered.
+- **status**: The HTTP status code (`400 Bad Request`).
+
+---
+
+Here is the updated documentation based on the provided response structure:
+
+---
