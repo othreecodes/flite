@@ -48,10 +48,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         read_only_fields = ('auth_token',)
         extra_kwargs = {'password': {'write_only': True}}
 
-class DepositSerializer(serializers.Serializer):
-    amount = serializers.FloatField()
 
-    
 class SendNewPhonenumberSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
@@ -70,5 +67,7 @@ class SendNewPhonenumberSerializer(serializers.ModelSerializer):
         fields = ('id', 'phone_number', 'verification_code', 'email',)
         extra_kwargs = {'phone_number': {'write_only': True, 'required':True}, 'email': {'write_only': True}, }
         read_only_fields = ('id', 'verification_code')
-        
-    
+
+# Transaction Serializer  
+class TransactionSerializer(serializers.Serializer):
+    amount = serializers.FloatField()
