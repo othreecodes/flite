@@ -163,6 +163,8 @@ Content-Type: application/json
 
 {
   "message": "Insufficient funds",
+  "balance": 0.0,
+  "amount": 200,
   "status": 400
 }
 ```

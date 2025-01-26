@@ -94,7 +94,6 @@ class Balance(BaseModel):
     class Meta:
         verbose_name= "Balance"
         verbose_name_plural = "Balances"
-        unique_together = ('owner', 'active')
 
 
 

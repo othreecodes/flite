@@ -221,9 +221,11 @@ class TransferFundView(APIView):
 
         amount = serializer.validated_data["amount"]
 
+        # Retrieve recipient and balances atomically
         recipient = get_object_or_404(User, id=recipient_account_id)
-        sender_balance = Balance.objects.filter(owner=sender).first()
-        recipient_balance = Balance.objects.filter(owner=recipient).first()
+        sender_balance = Balance.objects.get(owner=sender)
+        recipient_balance = Balance.objects.get(owner=recipient)
+
 
         if not sender_balance or not recipient_balance:
             return Response(
@@ -239,7 +241,6 @@ class TransferFundView(APIView):
 
         try:
             with transaction.atomic():
-                # Update balances
                 sender_balance.old_balance = sender_balance.available_balance
                 recipient_balance.old_balance = recipient_balance.available_balance
 
@@ -251,6 +252,7 @@ class TransferFundView(APIView):
                 sender_balance.save()
                 recipient_balance.save()
 
+                # Create transaction records
                 Transaction.objects.create(
                     owner=sender,
                     reference=str(uuid.uuid4()),

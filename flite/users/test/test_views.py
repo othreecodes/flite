@@ -76,7 +76,6 @@ class TestUserListTestCase(APITestCase):
         self.assertEqual(response.data['results'][0]['username'], self.regular_user.username)        
 
     def test_list_request_with_pagination(self):
-        # Create additional users to test pagination
         for i in range(10):
             User.objects.create_user(username=f'user{i}', password='password')
 
@@ -102,13 +101,11 @@ class TestUserDetailTestCase(APITestCase):
         self.other_user_url = reverse('user-detail', kwargs={'pk': self.other_user.pk})        
 
     def test_get_request_returns_a_given_user(self):
-        # Test authenticated user can view their own details
         response = self.client.get(self.url)
         eq_(response.status_code, status.HTTP_200_OK)
         eq_(response.data['id'], self.user.id)
 
     def test_get_request_fails_for_other_user(self):
-        # Test authenticated user cannot view another user's details
         response = self.client.get(self.other_user_url)
         eq_(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -131,7 +128,6 @@ class UserDepositsViewTest(APITestCase):
         self.url = reverse('user_deposits', kwargs={'id': self.user.id})
 
     def test_deposit_successful(self):
-        # Check if the user already has a balance
         initial_balance = Balance.objects.filter(owner=self.user).first()
         initial_available_balance = initial_balance.available_balance if initial_balance else 0.0
         initial_book_balance = initial_balance.book_balance if initial_balance else 0.0
@@ -179,6 +175,7 @@ class UserWithdrawalViewTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(username='testuser', password='testpassword')
         self.client.force_authenticate(user=self.user)
+        Balance.objects.filter(owner=self.user).delete()     
         self.balance = Balance.objects.create(owner=self.user, available_balance=1000.00, book_balance=1000.00, old_balance=0.0)
         self.withdrawal_url = reverse('user_withdrawals', kwargs={'id': self.user.id}) 
 
@@ -215,7 +212,6 @@ class TransactionListViewTest(APITestCase):
         self.client.force_authenticate(user=self.user)
         self.url = reverse('transactions', kwargs={'id': self.user.id})
 
-        # Create some transactions for the user
         self.transactions = [
             Transaction.objects.create(owner=self.user, reference='ref1', amount=100.0, new_balance=900.0, type='TRANSFER'),
             Transaction.objects.create(owner=self.user, reference='ref2', amount=200.0, new_balance=700.0, type='TRANSFER'),
@@ -289,7 +285,9 @@ class TransferFundViewTest(APITestCase):
     def setUp(self):
         self.sender = User.objects.create_user(username="sender", password="password123")
         self.recipient = User.objects.create_user(username="recipient", password="password123")
-        
+        Balance.objects.filter(owner=self.sender).delete()     
+        Balance.objects.filter(owner=self.recipient).delete()      
+
         self.sender_balance = Balance.objects.create(owner=self.sender, available_balance=1000, book_balance=1000)
         self.recipient_balance = Balance.objects.create(owner=self.recipient, available_balance=500, book_balance=500)
         self.url = reverse('transfer_funds', kwargs={'sender_account_id': self.sender.id, 'recipient_account_id': self.recipient.id})
@@ -302,6 +300,7 @@ class TransferFundViewTest(APITestCase):
         
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
         self.sender_balance.refresh_from_db()
         self.recipient_balance.refresh_from_db()
         
