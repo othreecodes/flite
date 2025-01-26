@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import AllBanks, Bank, P2PTransfer, Transaction, User, NewUserPhoneVerification, Balance
 from .permissions import IsUserOrReadOnly
-from .serializers import BalanceSerializer, CreateUserSerializer, TransactionSerializer, TransferSerializer, UserSerializer, SendNewPhonenumberSerializer
+from .serializers import BalanceSerializer, CreateUserSerializer, TransactionSerializer, TransferSerializer, UserAccountSerializer, UserSerializer, SendNewPhonenumberSerializer
 from rest_framework.views import APIView
 from . import utils
 from django.db import transaction as db_transaction
@@ -199,7 +199,11 @@ class TransferView(mixins.RetrieveModelMixin,
     3. Retrieve a specific transaction by ID.
     """
     queryset = User.objects.all()
-    serializer_class = TransferSerializer
+    # serializer_class = TransferSerializer
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return TransferSerializer
+        return UserAccountSerializer
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post', 'head', 'options']
     

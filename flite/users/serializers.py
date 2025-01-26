@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Balance, Transaction, User, NewUserPhoneVerification,UserProfile,Referral
+from .models import Balance, Bank, Card, Transaction, User, NewUserPhoneVerification,UserProfile,Referral
 from . import utils
 
 class UserSerializer(serializers.ModelSerializer):
@@ -88,3 +88,35 @@ class BalanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Balance
         fields = ['owner', 'book_balance', 'available_balance', 'active']
+
+class BankSerializer(serializers.ModelSerializer):
+    bank = serializers.StringRelatedField()  # To display the bank name instead of the ID
+    
+    class Meta:
+        model = Bank
+        fields = ['bank', 'account_name', 'account_number', 'account_type']
+        
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ['referral_code']
+
+class CardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Card
+        fields = [
+            'authorization_code', 'ctype', 'cbin', 'cbrand', 'country_code', 
+            'first_name', 'last_name', 'number', 'bank', 
+            'expiry_month', 'expiry_year', 'is_active'
+        ]
+
+class UserAccountSerializer(serializers.ModelSerializer):
+    balances = BalanceSerializer(many=True, source='balance_set')
+    banks = BankSerializer(many=True, source='bank_set')
+    cards = CardSerializer(many=True, source='card_set')
+    profile = UserProfileSerializer(source='userprofile')
+    transactions = TransactionSerializer(many=True, source='transaction')
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'balances', 'banks', 'cards', 'profile', 'transactions']
