@@ -179,19 +179,19 @@ class UserWithdrawalViewTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(username='testuser', password='testpassword')
         self.client.force_authenticate(user=self.user)
-        self.balance = Balance.objects.create(owner=self.user, available_balance=1000.00, book_balance=1000.00)
-        self.withdrawal_url = reverse('user_withdrawals', kwargs={'id': self.user.id})  # Update with your URL pattern name
+        self.balance = Balance.objects.create(owner=self.user, available_balance=1000.00, book_balance=1000.00, old_balance=0.0)
+        self.withdrawal_url = reverse('user_withdrawals', kwargs={'id': self.user.id}) 
 
     def test_successful_withdrawal(self):
         data = {'amount': 100.00}
         response = self.client.post(self.withdrawal_url, data, format='json')
         self.balance.refresh_from_db()
-        print(response.data)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['message'], 'Withdrawal successful')
         self.assertEqual(self.balance.available_balance, 900.00)
         self.assertEqual(self.balance.book_balance, 900.00)
+        self.assertEqual(self.balance.old_balance, 1000.00)
         self.assertTrue(Transaction.objects.filter(owner=self.user, amount=100.00, type='WITHDRAWAL').exists())
 
     def test_insufficient_funds(self):
@@ -285,19 +285,15 @@ class TransactionDetailViewTest(APITestCase):
         self.assertEqual(response.data['message'], "Transaction not found")
 
 
-
 class TransferFundViewTest(APITestCase):
     def setUp(self):
-        # Create users
         self.sender = User.objects.create_user(username="sender", password="password123")
         self.recipient = User.objects.create_user(username="recipient", password="password123")
         
-        # Create balances
         self.sender_balance = Balance.objects.create(owner=self.sender, available_balance=1000, book_balance=1000)
         self.recipient_balance = Balance.objects.create(owner=self.recipient, available_balance=500, book_balance=500)
         self.url = reverse('transfer_funds', kwargs={'sender_account_id': self.sender.id, 'recipient_account_id': self.recipient.id})
         
-        # Authenticate sender
         self.client.force_authenticate(user=self.sender)
 
     @transaction.atomic
@@ -305,16 +301,14 @@ class TransferFundViewTest(APITestCase):
         data = {"amount": 200}
         
         response = self.client.post(self.url, data)
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.sender_balance.refresh_from_db()
         self.recipient_balance.refresh_from_db()
         
-        # Assert balances updated correctly
         self.assertEqual(self.sender_balance.available_balance, 800)
         self.assertEqual(self.recipient_balance.available_balance, 700)
         
-        # Assert transactions created
+
         self.assertEqual(Transaction.objects.filter(owner=self.sender, type="TRANSFER").count(), 1)
         self.assertEqual(Transaction.objects.filter(owner=self.recipient, type="RECEIVED").count(), 1)
 

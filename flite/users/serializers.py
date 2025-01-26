@@ -78,8 +78,14 @@ class DepositSerializer(serializers.Serializer):
             raise serializers.ValidationError("Amount must be greater than zero")
         return value
     
-class WithdrawalSerializer(DepositSerializer):
-    pass   
+class WithdrawalSerializer(serializers.Serializer):
+    amount = serializers.FloatField(required=True)
+
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero")
+        return value   
 
 class TransferFundSerializer(serializers.Serializer):
     amount = serializers.FloatField(required=True)

@@ -13,7 +13,9 @@ from django.utils import timezone
 @python_2_unicode_compatible
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
+    
+    class Meta:
+        ordering = ['id']
     def __str__(self):
         return self.username
 
@@ -92,6 +94,7 @@ class Balance(BaseModel):
     class Meta:
         verbose_name= "Balance"
         verbose_name_plural = "Balances"
+        unique_together = ('owner', 'active')
 
 
 

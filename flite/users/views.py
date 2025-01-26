@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404
 from . import utils
 
 class UserPagination(PageNumberPagination):
-    page_size = 10  # Default number of items per page
+    page_size = 10  
     page_size_query_param = 'limit'
     max_page_size = 100
 
@@ -100,22 +100,20 @@ class SendNewPhonenumberVerifyViewSet(mixins.CreateModelMixin,mixins.UpdateModel
         }
         return Response(content, 200) 
 
-
 class UserDepositsView(GenericAPIView):
     queryset = Balance.objects.all()
     serializer_class = DepositSerializer
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         try:
             user = request.user
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
-            # Get the amount from the validated data
             amount = serializer.validated_data.get("amount")
 
-            # Get or create the user's balance
             balance, created = Balance.objects.get_or_create(owner=user)
 
             # Update balances
@@ -162,25 +160,22 @@ class UserWithdrawalView(GenericAPIView):
             serializer.is_valid(raise_exception=True)
             amount = serializer.validated_data["amount"]
 
-            # Use filter() to ensure there's only one Balance object and handle multiple cases
             balance = Balance.objects.filter(owner=user).first()
-            # if not balance:
-            #     return Response(
-            #         {
-            #             "message": "Balance record not found",
-            #             "status": status.HTTP_400_BAD_REQUEST
-            #         }, status=status.HTTP_400_BAD_REQUEST
-            #     )
+            if not balance:
+                raise Balance.DoesNotExist
 
             if amount > balance.available_balance:
                 return Response(
                     {
                         "message": 'Insufficient balance',
+                        "balance": balance.available_balance,
+                        "amount": amount,
                         "status": status.HTTP_400_BAD_REQUEST
                     }, status=status.HTTP_400_BAD_REQUEST
                 )
             with transaction.atomic():
-                old_balance = balance.available_balance
+                print(f"Old Balance: {balance.old_balance}, New Balance: {balance.available_balance}")
+                balance.old_balance = balance.available_balance
                 balance.available_balance -= amount
                 balance.book_balance -= amount
                 balance.save()
@@ -196,7 +191,7 @@ class UserWithdrawalView(GenericAPIView):
                 {
                     "message": "Withdrawal successful",
                     "status": status.HTTP_200_OK,
-                    "old_balance": old_balance,
+                    "old_balance": balance.old_balance,
                     "available_balance": balance.available_balance
                 }, status=status.HTTP_200_OK
             )
@@ -226,7 +221,6 @@ class TransferFundView(APIView):
 
         amount = serializer.validated_data["amount"]
 
-        # Retrieve recipient and balances atomically
         recipient = get_object_or_404(User, id=recipient_account_id)
         sender_balance = Balance.objects.filter(owner=sender).first()
         recipient_balance = Balance.objects.filter(owner=recipient).first()
@@ -257,7 +251,6 @@ class TransferFundView(APIView):
                 sender_balance.save()
                 recipient_balance.save()
 
-                # Create transaction records
                 Transaction.objects.create(
                     owner=sender,
                     reference=str(uuid.uuid4()),
