@@ -20,7 +20,7 @@ class UserViewSet(mixins.RetrieveModelMixin,
     queryset = User.objects.all()
     serializer_class = UserSerializer
     lookup_field = 'id' # This is the field that will be used to look up the user
-    permission_classes = (IsUserOrReadOnly, IsAuthenticated)
+    permission_classes = (IsUserOrReadOnly,)
     http_method_names = ['get', 'post', 'head', 'options']
     
     # func retrieves specific user by 'id'
@@ -99,7 +99,7 @@ class TransactionViewSet(mixins.RetrieveModelMixin,
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post', 'head', 'options']
 
-    @action(detail=True, methods=['post'], url_path='deposits', url_name='deposit')
+    @action(detail=True, methods=['get', 'post'], url_path='deposits', url_name='deposit')
     def deposit(self, request, *args, **kwargs):
         """
         Deposit funds into a user's account.
@@ -111,10 +111,7 @@ class TransactionViewSet(mixins.RetrieveModelMixin,
         serializer = TransferSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         deposit_amount = serializer.validated_data['amount']
-
-        if deposit_amount <= 0:
-            return Response({"error": "Deposit amount must be greater than zero"}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         if not balance.active:
             return Response({"error": "User account is not active for deposits"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -141,7 +138,7 @@ class TransactionViewSet(mixins.RetrieveModelMixin,
             "transaction_reference": transaction.reference
         }, status=status.HTTP_201_CREATED)
     
-    @action(detail=True, methods=['post'], url_path='withdrawals', url_name='withdraw')
+    @action(detail=True, methods=['get', 'post'], url_path='withdrawals', url_name='withdraw')
     def withdraw(self, request, *args, **kwargs):
         """
         Withdraw funds from a user's account.
@@ -156,9 +153,11 @@ class TransactionViewSet(mixins.RetrieveModelMixin,
         serializer = TransferSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         withdrawal_amount = serializer.validated_data['amount']
-
-        if withdrawal_amount <= 0:
-            return Response({"error": "Withdrawal amount must be greater than zero"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+        # Validate withdrawal amount type and value
+        if not isinstance(withdrawal_amount, (int, float)):
+            return Response({"error": "Withdrawal amount must be a number"}, status=status.HTTP_400_BAD_REQUEST)
 
         if not balance.active:
             return Response({"error": "User account is not active for withdrawals"}, status=status.HTTP_400_BAD_REQUEST)
@@ -232,9 +231,7 @@ class TransferView(mixins.RetrieveModelMixin,
         serializer = TransferSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         transfer_amount = serializer.validated_data['amount']
-
-        if transfer_amount <= 0:
-            return Response({"error": "Transfer amount must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+        
 
         if sender_balance.available_balance < transfer_amount:
             return Response({"error": "Insufficient funds."}, status=status.HTTP_400_BAD_REQUEST)
@@ -283,10 +280,9 @@ class TransactionDetailView(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   viewsets.GenericViewSet):
     """
-    Handles account-related operations:
-    1. Money transfers between accounts.
-    2. Retrieve a paginated list of transactions for a given account.
-    3. Retrieve a specific transaction by ID.
+    Manages account-related operations including money transfers between accounts, 
+    retrieving a paginated list of transactions for a given account, 
+    and retrieving details of a specific transaction by ID.
     """
     queryset = User.objects.all()
     serializer_class = TransferSerializer

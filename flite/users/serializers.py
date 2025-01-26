@@ -68,16 +68,14 @@ class SendNewPhonenumberSerializer(serializers.ModelSerializer):
         extra_kwargs = {'phone_number': {'write_only': True, 'required':True}, 'email': {'write_only': True}, }
         read_only_fields = ('id', 'verification_code')
 
-# Transaction Serializer  
-class DebitOrWithdrawSerializer(serializers.Serializer):
-    amount = serializers.FloatField()
-
-    class Meta:
-        model = Balance
-        fields = ['owner', 'book_balance', 'available_balance', 'active']
-
 class TransferSerializer(serializers.Serializer):
-    amount = serializers.FloatField(min_value=0.01)  # Transfer amount must be greater than 0
+    amount = serializers.FloatField(
+        min_value=0.01,  # Ensure the amount is greater than 0
+        error_messages={
+            'min_value': "Withdrawal amount must be greater than zero.",
+            'invalid': "Invalid amount. Please provide a valid number.",
+        }
+    )
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
