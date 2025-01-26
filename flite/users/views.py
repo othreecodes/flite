@@ -198,7 +198,7 @@ class TransferView(mixins.RetrieveModelMixin,
     2. Retrieve a paginated list of transactions for a given account.
     3. Retrieve a specific transaction by ID.
     """
-    queryset = Balance.objects.all()
+    queryset = User.objects.all()
     serializer_class = TransferSerializer
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post', 'head', 'options']
@@ -249,6 +249,7 @@ class TransferView(mixins.RetrieveModelMixin,
 
             # Create transaction records for both sender and recipient
             sender_transaction = P2PTransfer.objects.create(
+                owner=sender,  # Add this line to set the owner
                 sender=sender,
                 receipient=recipient,
                 reference=f"TRF-{uuid.uuid4().hex[:8]}",
@@ -258,6 +259,7 @@ class TransferView(mixins.RetrieveModelMixin,
             )
 
             recipient_transaction = P2PTransfer.objects.create(
+                owner=recipient,  # Add this line to set the owner
                 sender=sender,
                 receipient=recipient,
                 reference=f"TRF-{uuid.uuid4().hex[:8]}",
