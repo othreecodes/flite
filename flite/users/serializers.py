@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Balance, User, NewUserPhoneVerification,UserProfile,Referral
+from .models import Balance, Transaction, User, NewUserPhoneVerification,UserProfile,Referral
 from . import utils
 
 class UserSerializer(serializers.ModelSerializer):
@@ -69,5 +69,22 @@ class SendNewPhonenumberSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'verification_code')
 
 # Transaction Serializer  
-class TransactionSerializer(serializers.Serializer):
+class DebitOrWithdrawSerializer(serializers.Serializer):
     amount = serializers.FloatField()
+
+    class Meta:
+        model = Balance
+        fields = ['owner', 'book_balance', 'available_balance', 'active']
+
+class TransferSerializer(serializers.Serializer):
+    amount = serializers.FloatField(min_value=0.01)  # Transfer amount must be greater than 0
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['id', 'reference', 'status', 'amount', 'new_balance']
+
+class BalanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Balance
+        fields = ['owner', 'book_balance', 'available_balance', 'active']
