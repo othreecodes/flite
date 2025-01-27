@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import AllBanks, Bank, P2PTransfer, Transaction, User, NewUserPhoneVerification, Balance
 from .permissions import IsUserOrReadOnly
-from .serializers import BalanceSerializer, CreateUserSerializer, TransactionSerializer, TransferSerializer, UserAccountSerializer, UserSerializer, SendNewPhonenumberSerializer
+from  .serializers import BalanceSerializer, CreateUserSerializer, TransactionSerializer, TransferSerializer, UserAccountSerializer, UserSerializer, SendNewPhonenumberSerializer
 from rest_framework.views import APIView
 from . import utils
 from django.db import transaction as db_transaction
@@ -20,7 +20,7 @@ class UserViewSet(mixins.RetrieveModelMixin,
     queryset = User.objects.all()
     serializer_class = UserSerializer
     lookup_field = 'id' # This is the field that will be used to look up the user
-    permission_classes = (IsUserOrReadOnly,)
+    permission_classes = (IsUserOrReadOnly, IsAuthenticated)
     http_method_names = ['get', 'post', 'head', 'options']
     
     # func retrieves specific user by 'id'

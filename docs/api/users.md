@@ -37,13 +37,211 @@
 ### Endpoints Overview
 Below is the list of view classes, functions, and serializers implemented:
 
-1. `GET` `/users/:user_id` - Retrieve user details.
-2. `GET` `/users` - List all users.
-3. `POST` `/users/:user_id/deposits` - Deposit money to a user account.
-4. `POST` `/users/:user_id/withdrawals` - Withdraw money from a user account.
-5. `POST` `/account/:sender_account_id/transfers/:recipient_account_id` - Transfer money between accounts.
-6. `GET` `/account/:account_id/transactions` - Retrieve transactions for a specific account.
-7. `GET` `/account/:account_id/transactions/:transaction_id` - Retrieve details of a specific transaction.
+### Retrieve user details
+
+**Request**:
+
+`GET` `/users/:user_id/`
+
+*Note:* **[Authorization Protected](authentication.md)**
+
+**Response**:
+
+```json
+Content-Type application/json
+200 OK
+
+
+{
+    "id": "daa20e78-eca9-41cd-84c9-35059f390420",
+    "username": "richard",
+    "first_name": "Richard",
+    "last_name": "Hendriks"
+}
+```
+### List all users
+
+**Request**:
+
+`GET` `/users/`
+
+*Note:* **[Authorization Protected](authentication.md)**
+
+**Response**:
+
+```json
+Content-Type application/json
+200 OK
+
+{
+    "count": 2,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": "daa20e78-eca9-41cd-84c9-35059f390420",
+            "username": "richard",
+            "first_name": "Richard",
+            "last_name": "Hendriks"
+        },
+        {
+            "id": "ae90fb3b-6904-4284-9ce9-67819203d9cc",
+            "username": "micheal",
+            "first_name": "Micheal",
+            "last_name": "Scotland"
+        }
+    ]
+}
+```
+### Deposit money to a user account
+
+**Request**:
+
+`POST` `/users/:user_id/deposits`
+
+| Name       | Type   | Required | Description                       |
+|------------|--------|----------|-----------------------------------|
+| amount     | integer| Yes      | The amount to be deposited.       |
+
+*Note:* **[Authorization Protected](authentication.md)**
+
+**Response**:
+
+```json
+Content-Type application/json
+201 Created
+
+{
+    "message": "Deposit successful",
+    "new_balance": 10.0,
+    "transaction_reference": "DEP-8bf9b975"
+}
+```
+
+### Withdraw money from a user account
+
+**Request**:
+
+`POST` `/users/:user_id/withdrawals`
+
+| Name       | Type   | Required | Description                       |
+|------------|--------|----------|-----------------------------------|
+| amount     | integer| Yes      | The amount to be withdrawn.       |
+
+*Note:* **[Authorization Protected](authentication.md)**
+
+**Response**:
+
+```json
+Content-Type application/json
+201 Created
+
+{
+    "message": "Withdrawal successful",
+    "new_balance": 0.0,
+    "transaction_reference": "WDL-5c867546"
+}
+```
+
+### Transfer money between accounts
+
+**Request**:
+
+`POST` `/account/:sender_account_id/transfers/:recipient_account_id`
+
+| Name       | Type   | Required | Description                       |
+|------------|--------|----------|-----------------------------------|
+| amount     | integer| Yes      | The amount to be withdrawn.       |
+
+*Note:* **[Authorization Protected](authentication.md)**
+
+**Response**:
+
+```json
+Content-Type application/json
+201 Created
+
+{
+    "message": "Transfer successful",
+    "sender_new_balance": 19990.0,
+    "recipient_new_balance": 1000023.0,
+    "transaction_reference": "TRF-b2e69065"
+}
+```
+
+### Retrieve transactions for a specific account
+
+**Request**:
+
+`GET` `/account/:account_id/transactions`
+
+*Note:* **[Authorization Protected](authentication.md)**
+
+**Response**:
+
+```json
+Content-Type application/json
+200 OK
+
+{
+    "count": 4,
+    "next": null,
+    "previous": null,
+    "results": [
+        {
+            "id": "344e4cdc-5353-4183-a1c1-9be9534dae7d",
+            "reference": "TRF-6d524887",
+            "status": "Successful",
+            "amount": 10.0,
+            "new_balance": 1000023.0
+        },
+        {
+            "id": "c7b49882-0419-4c7b-b304-16b8c5428774",
+            "reference": "TRF-01b1504d",
+            "status": "Successful",
+            "amount": 999999.0,
+            "new_balance": 1000013.0
+        },
+        {
+            "id": "7324a965-dd0b-4022-aa70-c75537b32798",
+            "reference": "TRF-21fe151a",
+            "status": "Successful",
+            "amount": 4.0,
+            "new_balance": 14.0
+        },
+        {
+            "id": "923f7b15-b8c6-4d48-a74b-410d6bb60fb9",
+            "reference": "DEP-43694ba4",
+            "status": "Successful",
+            "amount": 10.0,
+            "new_balance": 10.0
+        }
+    ]
+}
+```
+
+### Retrieve details of a specific transaction.
+
+**Request**:
+
+`GET` `/account/:account_id/transactions/:transaction_id`
+
+*Note:* **[Authorization Protected](authentication.md)**
+
+**Response**:
+
+```json
+Content-Type application/json
+200 OK
+
+{
+    "id": "344e4cdc-5353-4183-a1c1-9be9534dae7d",
+    "reference": "TRF-6d524887",
+    "status": "Successful",
+    "amount": 10.0,
+    "new_balance": 1000023.0
+}
+```
 
 ---
 
