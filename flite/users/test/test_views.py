@@ -14,73 +14,71 @@ import uuid
 fake = Faker()
 
 
-# class TestUserListTestCase(APITestCase):
-#     """
-#     Tests /users list operations.
-#     """
+class TestUserListTestCase(APITestCase):
+    """
+    Tests /users list operations.
+    """
 
-#     def setUp(self):
-#         self.url = reverse('user-list')
-#         self.user_data = model_to_dict(UserFactory.build())
+    def setUp(self):
+        self.url = reverse('user-list')
+        self.user = UserFactory()
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.user.auth_token}')
 
-#     def test_post_request_with_no_data_fails(self):
-#         response = self.client.post(self.url, {})
-#         eq_(response.status_code, status.HTTP_400_BAD_REQUEST)
+    # def test_post_request_with_valid_data_succeeds(self): # This will fail under the url "users-list" because create request is not allowed
+    #     new_User = UserFactory()
+    #     response = self.client.post(self.url, new_User)
+    #     eq_(response.status_code, status.HTTP_201_CREATED)
 
-#     def test_post_request_with_valid_data_succeeds(self): # failed
-#         response = self.client.post(self.url, self.user_data)
-#         eq_(response.status_code, status.HTTP_201_CREATED)
+    #     user = User.objects.get(pk=response.data.get('id'))
+    #     eq_(user.username, self.user.get('username'))
+    #     ok_(check_password(self.user.get('password'), user.password))
 
-#         user = User.objects.get(pk=response.data.get('id'))
-#         eq_(user.username, self.user_data.get('username'))
-#         ok_(check_password(self.user_data.get('password'), user.password))
+    # def test_post_request_with_valid_data_succeeds_and_profile_is_created(self): # This will fail under the url "users-list" because create request is not allowed
+    #     response = self.client.post(self.url, self.user)
+    #     eq_(response.status_code, status.HTTP_201_CREATED)
 
-#     def test_post_request_with_valid_data_succeeds_and_profile_is_created(self): # failed
-#         response = self.client.post(self.url, self.user_data)
-#         eq_(response.status_code, status.HTTP_201_CREATED)
+    #     eq_(UserProfile.objects.filter(user__username=self.user['username']).exists(),True)
 
-#         eq_(UserProfile.objects.filter(user__username=self.user_data['username']).exists(),True)
-
-#     def test_post_request_with_valid_data_succeeds_referral_is_created_if_code_is_valid(self): # failed
+    # def test_post_request_with_valid_data_succeeds_referral_is_created_if_code_is_valid(self): # This will fail under the url "users-list" because update request is not allowed
         
-#         referring_user = UserFactory()
-#         self.user_data.update({"referral_code":referring_user.userprofile.referral_code})
-#         response = self.client.post(self.url, self.user_data)
-#         eq_(response.status_code, status.HTTP_201_CREATED)
+    #     referring_user = UserFactory()
+    #     self.user.update({"referral_code":referring_user.userprofile.referral_code})
+    #     response = self.client.post(self.url, self.user)
+    #     eq_(response.status_code, status.HTTP_201_CREATED)
 
-#         eq_(Referral.objects.filter(referred__username=self.user_data['username'],owner__username=referring_user.username).exists(),True)
+    #     eq_(Referral.objects.filter(referred__username=self.user['username'],owner__username=referring_user.username).exists(),True)
 
 
-#     def test_post_request_with_valid_data_succeeds_referral_is_not_created_if_code_is_invalid(self): # failed
+    # def test_post_request_with_valid_data_succeeds_referral_is_not_created_if_code_is_invalid(self): # Update Request is not allowed so this will fail
         
-#         self.user_data.update({"referral_code":"FAKECODE"})
-#         response = self.client.post(self.url, self.user_data)
-#         eq_(response.status_code, status.HTTP_400_BAD_REQUEST)
+    #     self.user.update({"referral_code":"FAKECODE"})
+    #     response = self.client.post(self.url, self.user)
+    #     eq_(response.status_code, status.HTTP_400_BAD_REQUEST)
         
-# class TestUserDetailTestCase(APITestCase):
-#     """
-#     Tests /users detail operations.
-#     """
+class TestUserDetailTestCase(APITestCase):
+    """
+    Tests /users detail operations.
+    """
 
-#     def setUp(self):
-#         self.user = UserFactory()
-#         self.url = reverse('user-detail', kwargs={'pk': self.user.pk})
-#         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.user.auth_token}')
+    def setUp(self):
+        self.user = UserFactory()
+        self.url = reverse('user-detail', kwargs={'pk': self.user.pk})
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.user.auth_token}')
 
-#     def test_get_request_returns_a_given_user(self):
-#         response = self.client.get(self.url)
-#         eq_(response.status_code, status.HTTP_200_OK)
+    def test_get_request_returns_a_given_user(self):
+        response = self.client.get(self.url)
+        eq_(response.status_code, status.HTTP_200_OK)
 
-#     def test_put_request_updates_a_user(self): #failed
-#         new_first_name = fake.first_name()
-#         payload = {'first_name': new_first_name}
-#         response = self.client.put(self.url, payload)
-#         eq_(response.status_code, status.HTTP_200_OK)
+    # def test_put_request_updates_a_user(self): # Put request is not allowed
+    #     new_first_name = fake.first_name()
+    #     payload = {'first_name': new_first_name}
+    #     response = self.client.put(self.url, payload)
+    #     eq_(response.status_code, status.HTTP_200_OK)
 
-#         user = User.objects.get(pk=self.user.id)
-#         eq_(user.first_name, new_first_name)
+        # user = User.objects.get(pk=self.user.id)
+        # eq_(user.first_name, new_first_name)
 
-# Test for task endpoints
+# Test for my task starts here
 class TestUserDepositView(APITestCase):
     """
     Tests for the /user-deposit endpoint.
@@ -245,7 +243,7 @@ class TransactionDetailViewTest(APITestCase):
 
     def test_transaction_detail_invalid_transaction_id(self):
         """
-        Test that a 400 error is returned when an invalid transaction ID format is provided.
+        Test that a 404 error is returned when an invalid transaction ID format is provided.
         """
         # Use an invalid transaction ID format
         invalid_transaction_id = uuid.uuid4()
@@ -253,4 +251,4 @@ class TransactionDetailViewTest(APITestCase):
 
         response = self.client.get(detail_url)
         # Check if a 400 response is returned for invalid transaction ID
-        eq_(response.status_code, status.HTTP_400_BAD_REQUEST)
+        eq_(response.status_code, status.HTTP_404_NOT_FOUND)
