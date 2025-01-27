@@ -311,9 +311,17 @@ class TransactionDetailView(mixins.RetrieveModelMixin,
         """
         Retrieve details of a specific transaction.
         """
-        transaction = Transaction.objects.filter(id=transaction_id).first()
+        user = self.get_object()  # Get the user account using pk
+        
+        try:
+            # Ensure the transaction_id is a valid UUID
+            transaction_id = uuid.UUID(transaction_id)
+        except ValueError:
+            return Response({"error": "Invalid transaction ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+        transaction = Transaction.objects.filter(owner=user, id=transaction_id).first()
         if not transaction:
-            return Response({"error": "Transaction not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Transaction not found."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = TransactionSerializer(transaction)
         return Response(serializer.data)

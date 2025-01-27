@@ -1,3 +1,4 @@
+import uuid
 import factory
 
 
@@ -28,3 +29,12 @@ class BalanceFactory(factory.django.DjangoModelFactory):
     active = True  # Assume balance is always active
 
 
+class TransactionFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = 'users.Transaction'
+
+    owner = factory.SubFactory(UserFactory)  # Link to UserFactory
+    reference = factory.LazyFunction(lambda: uuid.uuid4().hex[:8])
+    status = 'success'  # Assume transaction is always successful
+    amount = factory.Faker('random_int', min=-1000, max=1000)  # Random amount between -1000 and 1000
+    new_balance = factory.Faker('pyfloat', left_digits=4, right_digits=2, positive=True, min_value=10, max_value=10000)  # Random float value between 0 and 10000
