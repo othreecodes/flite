@@ -1,30 +1,31 @@
 # Users
-Supports registering, viewing, and updating user accounts.
+Supports registering, viewing, and retrieving user accounts.
 
-## Register a new user account
+---
+
+## Register a New User Account
 
 **Request**:
 
 `POST` `/users/`
 
-Parameters:
+### Parameters:
 
-Name       | Type   | Required | Description
------------|--------|----------|------------
-username   | string | Yes      | The username for the new user.
-password   | string | Yes      | The password for the new user account.
-first_name | string | No       | The user's given name.
-last_name  | string | No       | The user's family name.
-email      | string | No       | The user's email address.
+| Name       | Type   | Required | Description                           |
+|------------|--------|----------|---------------------------------------|
+| username   | string | Yes      | The username for the new user.        |
+| password   | string | Yes      | The password for the new user account.|
+| first_name | string | No       | The user's given name.                |
+| last_name  | string | No       | The user's family name.               |
+| email      | string | No       | The user's email address.             |
 
 *Note:*
-
-- Not Authorization Protected
+- This endpoint does not require authorization.
 
 **Response**:
 
 ```json
-Content-Type application/json
+Content-Type: application/json
 201 Created
 
 {
@@ -37,8 +38,61 @@ Content-Type application/json
 }
 ```
 
-The `auth_token` returned with this response should be stored by the client for
-authenticating future requests to the API. See [Authentication](authentication.md).
+The `auth_token` returned in this response should be stored by the client for authenticating future requests to the API. See [Authentication](authentication.md).
+
+---
+
+## Retrieve a List of Users
+
+**Request**:
+
+`GET` `/users/`
+
+### Description:
+
+Retrieves a paginated list of user accounts. The response depends on the role of the authenticated user:
+- **Admin/Superuser**: Retrieves all user accounts.
+- **Regular User**: Retrieves only the account of the authenticated user.
+
+*Note:*
+- This endpoint requires authentication.
+
+**Response**:
+
+```json
+Content-Type: application/json
+200 OK
+
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "6d5f9bae-a31b-4b7b-82c4-3853eda2b011",
+      "username": "richard",
+      "first_name": "Richard",
+      "last_name": "Hendriks",
+      "email": "richard@piedpiper.com"
+    },
+    {
+      "id": "6d5f9bae-a31b-4b7b-82c4-3853eda2b012",
+      "username": "gilfoyle",
+      "first_name": "Bertram",
+      "last_name": "Gilfoyle",
+      "email": "gilfoyle@piedpiper.com"
+    }
+  ]
+}
+```
+
+---
+
+## Behavior Notes:
+
+- **Pagination**: Responses are paginated by default. Use query parameters like `page` and `limit` to navigate through results.
+- **Authorization**: Only authenticated users can access this endpoint.
+- **Filtering**: Admins see all users; regular users see only their own account details.
 
 
 ## Get a user's profile information

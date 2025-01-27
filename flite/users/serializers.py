@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, NewUserPhoneVerification,UserProfile,Referral
+from .models import User, NewUserPhoneVerification,UserProfile,Referral, Transaction
 from . import utils
 
 class UserSerializer(serializers.ModelSerializer):
@@ -69,4 +69,35 @@ class SendNewPhonenumberSerializer(serializers.ModelSerializer):
         extra_kwargs = {'phone_number': {'write_only': True, 'required':True}, 'email': {'write_only': True}, }
         read_only_fields = ('id', 'verification_code')
         
+class DepositSerializer(serializers.Serializer):
+    amount = serializers.FloatField(required=True)
+
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero")
+        return value
     
+class WithdrawalSerializer(serializers.Serializer):
+    amount = serializers.FloatField(required=True)
+
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero")
+        return value   
+
+class TransferFundSerializer(serializers.Serializer):
+    amount = serializers.FloatField(required=True)
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero")
+        return value
+    
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = "__all__"
+
+
