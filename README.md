@@ -1,3 +1,65 @@
+
+# Project Setup Guide
+
+This guide will walk you through setting up the project locally using Docker.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- Docker
+- Docker Compose
+- Git
+
+## Setup Steps
+
+1. **Clone the Project**
+
+   First, clone the project repository from GitHub:
+
+   ```bash
+   git clone <repository-url>
+   ```
+
+2. **Navigate to the Project Directory**
+
+   Change into the project directory:
+
+   ```bash
+   cd <project-directory>
+   ```
+
+3. **Start Docker Containers**
+
+   Run the following command to start the Docker containers:
+
+   ```bash
+   docker-compose up
+   ```
+
+   This will set up the necessary services defined in the `docker-compose.yml` file.
+
+4. **Set Up the Environment Variables**
+
+   Copy the contents of the `.env-example` file and save it as `.env` in the project directory:
+
+   ```bash
+   cp .env-example .env
+   ```
+
+   This will configure the environment variables needed for the project.
+
+5. **Run the Application**
+
+   After the containers are up and the environment variables are set, you can proceed with running the application as needed.
+
+## Additional Information
+
+- If you encounter any issues during setup, check the logs with `docker-compose logs` for troubleshooting.
+- For any further configurations, refer to the project documentation or consult the team.
+
+# Project Endpoints
+
 # 1. User Deposit
 
 Supports depositing funds into a user's account.
