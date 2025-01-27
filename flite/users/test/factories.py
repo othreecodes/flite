@@ -17,7 +17,7 @@ class UserFactory(factory.django.DjangoModelFactory):
     is_active = True
     is_staff = False
 
-# Created Balance Factory
+# # Created Balance Factory
 class BalanceFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = 'users.Balance'
@@ -26,3 +26,5 @@ class BalanceFactory(factory.django.DjangoModelFactory):
     available_balance = factory.Faker('random_int', min=1000, max=10000)  # Random balance between 1000 and 10000
     book_balance = factory.LazyAttribute(lambda o: o.available_balance)  # Same as available balance initially
     active = True  # Assume balance is always active
+
+

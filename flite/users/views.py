@@ -192,10 +192,7 @@ class TransferView(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   viewsets.GenericViewSet):
     """
-    Handles account-related operations:
-    1. Money transfers between accounts.
-    2. Retrieve a paginated list of transactions for a given account.
-    3. Retrieve a specific transaction by ID.
+        Money transfers between accounts
     """
     queryset = User.objects.all()
     # serializer_class = TransferSerializer
@@ -280,9 +277,10 @@ class TransactionDetailView(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   viewsets.GenericViewSet):
     """
-    Manages account-related operations including money transfers between accounts, 
-    retrieving a paginated list of transactions for a given account, 
-    and retrieving details of a specific transaction by ID.
+        Manages account-related operations including:
+        - Money transfers between accounts,
+        - Retrieving a paginated list of transactions for a given account,
+        - Retrieving details of a specific transaction by its ID.
     """
     queryset = User.objects.all()
     serializer_class = TransferSerializer
